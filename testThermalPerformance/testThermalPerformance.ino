@@ -48,12 +48,11 @@ int thermoCLK = 7;
 Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 // ESC initialization
-int escPin = 10;
-int escStart = 90;
+int escPin = 5;
 Servo escOut;
 
 long timeSinceStart = 0;
-int pwmOut = 0;
+int pwmOut = 15;
 double tempCelsius = 0;
 double tempRefCelsius = 0;
 
@@ -72,34 +71,36 @@ void setup() {
   Serial.println("timeSinceStart,pwmOut,tempCelsius,tempRefCelsius");
   
   escOut.attach(escPin);
-  escOut.write(escStart);
+  escOut.write(pwmOut);
   // wait for MAX chip to stabilize
-  delay(5);
+  delay(5000);
 }
 
 void loop() {
-//  timeSinceStart = millis();
+  pwmOut = 100;
+  timeSinceStart = millis();
+  escOut.write(pwmOut);
   
 /*
   everything time-critical should happen within this if() statement, since this is where 
   execution rate is controlled via refreshRate.
 */
-//  if ((timeSinceStart % refreshRate == 0) && (nextTick == true)) {
+  if ((timeSinceStart % refreshRate == 0) && (nextTick == true)) {
     tempCelsius = thermocouple.readCelsius();
-//    tempRefCelsius = thermocouple.readInternal();  
+    tempRefCelsius = thermocouple.readInternal();  
     
-    //updateSerial(timeSinceStart,pwmOut,tempCelsius,tempRefCelsius);
-//    nextTick = false;
-    escOut.write((tempCelsius - 20) * 8);
- // }
+    updateSerial(timeSinceStart,pwmOut,tempCelsius,tempRefCelsius);
+    nextTick = false;
+    //escOut.write((tempCelsius - 20) * 8);
+  }
 
 /*
   this if statement just checks to see that time has moved on since the last execution
   of the timed loop. Deals with millis() values repeating themselves--can that happen?
 */
-//  if ((nextTick == false) && (timeSinceStart % refreshRate > 0)) {
-//    nextTick = true;
-//  }
+  if ((nextTick == false) && (timeSinceStart % refreshRate > 0)) {
+    nextTick = true;
+  }
 }
 
 void updateSerial(long timeSinceStart,int pwmOut,double tempCelsius,double tempRefCelsius) {
