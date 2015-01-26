@@ -56,6 +56,12 @@ int pwmOut = 15;
 double tempCelsius = 0;
 double tempRefCelsius = 0;
 
+// Mode 1 = Stop (red LED on); Mode 2 = Run (green LED on)
+int mode = 1;
+int greenPin = 13;
+int redPin = 12;
+int buttonPin = 11;
+
 /*
   nextTick is used to ensure that each clock cycle happens once, since the update rate
   of loop() is uncontrolled.
@@ -70,6 +76,9 @@ void setup() {
   Serial.println("GimbalBot, Sparkfun Arduino Pro Mini 5V, Adafruit Thermocouple Sensor w/MAX31855K, KDE ESCs");
   Serial.println("timeSinceStart,pwmOut,tempCelsius,tempRefCelsius");
   
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(buttonPin, INPUT);
   escOut.attach(escPin);
   escOut.write(pwmOut);
   // wait for MAX chip to stabilize
@@ -77,9 +86,26 @@ void setup() {
 }
 
 void loop() {
-  pwmOut = 100;
   timeSinceStart = millis();
   escOut.write(pwmOut);
+  
+  if (mode == 1) {
+    digitalWrite(redPin, HIGH);
+    digitalWrite(greenPin, LOW);
+  }
+  if (mode == 2) {
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, HIGH);
+  }
+    
+  if (digitalRead(buttonPin) == HIGH) {
+    mode = 2;
+    pwmOut = 100;
+  }
+  if (digitalRead(buttonPin) == LOW) {
+    mode = 1;
+    pwmOut = 15;
+  }
   
 /*
   everything time-critical should happen within this if() statement, since this is where 
