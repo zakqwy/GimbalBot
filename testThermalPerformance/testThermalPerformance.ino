@@ -17,8 +17,10 @@
   tempCelsius = TC temperature reading in C
   tempRefCelsius = MAX reference temp in C
   
-  Program automatically arms ESC then ramps up to runMax. Maintains
-  this value until T = tempMax. Refreshes value at rate refreshRate,
+  Program automatically arms ESC and waits for a pushbutton input.
+  Hitting the button once starts the motor spinning at runSpeed for
+  duration timeTest (seconds). Stops when (a) time is done or (b)
+  button is pressed again. Refreshes value at rate refreshRate,
   which is a delay measured in ms.
 */
 
@@ -51,29 +53,39 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 int escPin = 5;
 Servo escOut;
 
+// Output parameters
 long timeSinceStart = 0;
 int pwmOut = 15;
 double tempCelsius = 0;
 double tempRefCelsius = 0;
 
-// Mode 1 = Stop (red LED on); Mode 2 = Run (green LED on)
+// Test parameters
+long timeTest = 120;
+int runSpeed = 110;
+long timeTestStart;
+
+/*
+  Mode 1 = Stop (red LED on); Mode 2 = Run (green LED on). prevButtonTime, prevButtonStatus
+  and debounceTime are used for button debounce.
+*/
 int mode = 1;
 int greenPin = 13;
 int redPin = 12;
 int buttonPin = 11;
+long prevButtonTime = 0;
+int debounceTime = 10;
+boolean prevButtonStatus = LOW;
 
 /*
   nextTick is used to ensure that each clock cycle happens once, since the update rate
   of loop() is uncontrolled.
 */
 boolean nextTick = true;
-
 int refreshRate = 500;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("testThermal Performance");
-  Serial.println("GimbalBot, Sparkfun Arduino Pro Mini 5V, Adafruit Thermocouple Sensor w/MAX31855K, KDE ESCs");
+  Serial.println("testThermalPerformance");
   Serial.println("timeSinceStart,pwmOut,tempCelsius,tempRefCelsius");
   
   pinMode(redPin, OUTPUT);
@@ -92,21 +104,29 @@ void loop() {
   if (mode == 1) {
     digitalWrite(redPin, HIGH);
     digitalWrite(greenPin, LOW);
+    pwmOut = 15;
   }
   if (mode == 2) {
     digitalWrite(redPin, LOW);
     digitalWrite(greenPin, HIGH);
-  }
-    
-  if (digitalRead(buttonPin) == HIGH) {
-    mode = 2;
-    pwmOut = 100;
-  }
-  if (digitalRead(buttonPin) == LOW) {
-    mode = 1;
-    pwmOut = 15;
+    pwmOut = runSpeed;
   }
   
+  if (timeSinceStart - timeTestStart > (timeTest * 1000)) {
+    mode = 1;
+  }
+    
+  if ((digitalRead(buttonPin) == HIGH) && (prevButtonStatus == LOW) && ((timeSinceStart - prevButtonTime) > debounceTime)) {
+    if (mode == 2) {
+      mode = 1; 
+    }
+    else {
+      mode = 2;
+      timeTestStart = timeSinceStart;
+    }
+    prevButtonTime = timeSinceStart;
+  }
+
 /*
   everything time-critical should happen within this if() statement, since this is where 
   execution rate is controlled via refreshRate.
@@ -127,6 +147,7 @@ void loop() {
   if ((nextTick == false) && (timeSinceStart % refreshRate > 0)) {
     nextTick = true;
   }
+  prevButtonStatus = digitalRead(buttonPin);
 }
 
 void updateSerial(long timeSinceStart,int pwmOut,double tempCelsius,double tempRefCelsius) {
